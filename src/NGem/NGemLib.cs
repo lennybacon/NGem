@@ -9,15 +9,18 @@ namespace devplex
 {
     class NGemLib
     {
-        private static string _gemSource;
-        private static readonly string s_gemSourceUserName;
-        private static readonly string s_gemSourcePassword;
+        private static string s_gemSource;
+        private static string s_gemSourceUserName;
+        private static string s_gemSourcePassword;
 
         static NGemLib()
         {
-            _gemSource = ConfigurationManager.AppSettings["nGemSource"];
-            s_gemSourceUserName = ConfigurationManager.AppSettings["nGemSourceUserName"];
-            s_gemSourcePassword = ConfigurationManager.AppSettings["nGemSourcePassword"];
+            s_gemSource = 
+                ConfigurationManager.AppSettings["nGemSource"];
+            s_gemSourceUserName = 
+                ConfigurationManager.AppSettings["nGemSourceUserName"];
+            s_gemSourcePassword = 
+                ConfigurationManager.AppSettings["nGemSourcePassword"];
         }
 
         public static bool CreatePackage(
@@ -105,7 +108,7 @@ namespace devplex
 
         public static bool DownloadPackage(string gemName)
         {
-            if (string.IsNullOrWhiteSpace(_gemSource))
+            if (string.IsNullOrWhiteSpace(s_gemSource))
                 throw new ConfigurationErrorsException("Enter a source url.");
 
             var webClient = new WebClient();
@@ -116,8 +119,8 @@ namespace devplex
                     new NetworkCredential(s_gemSourceUserName, s_gemSourcePassword);
             }
 
-            if (!_gemSource.EndsWith("/"))
-                _gemSource += "/";
+            if (!s_gemSource.EndsWith("/"))
+                s_gemSource += "/";
 
             string libDir = EnsureLibDirectory();
 
@@ -125,7 +128,7 @@ namespace devplex
                 Path.Combine(Path.GetTempPath(), string.Concat(gemName, ".zip"));
 
             webClient.DownloadFile(
-                string.Concat(_gemSource, gemName, ".zip"),
+                string.Concat(s_gemSource, gemName, ".zip"),
                 tempGem);
 
             ExtractGem(tempGem, libDir);
