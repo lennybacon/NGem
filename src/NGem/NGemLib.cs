@@ -17,6 +17,16 @@ namespace devplex
         {
             s_gemSource = 
                 ConfigurationManager.AppSettings["nGemSource"];
+            if (string.IsNullOrEmpty(s_gemSource))
+            {
+                throw new InvalidOperationException(
+                    "The configuration is missing the appSettings" +
+                    " key \"gemSource\".");
+            }
+            if (!s_gemSource.EndsWith("/", StringComparison.OrdinalIgnoreCase))
+            {
+                s_gemSource = string.Concat(s_gemSource, "/");
+            }
             s_gemSourceUserName = 
                 ConfigurationManager.AppSettings["nGemSourceUserName"];
             s_gemSourcePassword = 
@@ -74,6 +84,13 @@ namespace devplex
             var files = dir.GetFiles();
             foreach (var fileName in files)
             {
+                if (!fileName.Name.EndsWith(".dll") ||
+                    fileName.Name.EndsWith(".xml") ||
+                    fileName.Name.EndsWith(".txt"))
+                {
+                    continue;
+                }
+
                 var fullUri = 
                     string.Concat(
                         path, 
