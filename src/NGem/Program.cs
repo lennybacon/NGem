@@ -1,5 +1,5 @@
 ﻿using System;
-using devplex.Extentions;
+using devplex.Extensions;
 
 namespace devplex
 {

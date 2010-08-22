@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Reflection;
 
-namespace devplex.Extentions
+namespace devplex.Extensions
 {
     public static partial class StringExtensions
     {
