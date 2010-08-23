@@ -2,8 +2,10 @@
 using System.IO;
 using System.IO.Packaging;
 using System.Configuration;
+using System.Linq;
 using System.Net;
 using System.Web;
+using System.Xml;
 
 namespace devplex
 {
@@ -15,7 +17,7 @@ namespace devplex
 
         static NGemLib()
         {
-            s_gemSource = 
+            s_gemSource =
                 ConfigurationManager.AppSettings["nGemSource"];
             if (string.IsNullOrEmpty(s_gemSource))
             {
@@ -27,25 +29,25 @@ namespace devplex
             {
                 s_gemSource = string.Concat(s_gemSource, "/");
             }
-            s_gemSourceUserName = 
+            s_gemSourceUserName =
                 ConfigurationManager.AppSettings["nGemSourceUserName"];
-            s_gemSourcePassword = 
+            s_gemSourcePassword =
                 ConfigurationManager.AppSettings["nGemSourcePassword"];
         }
 
         public static bool CreatePackage(
-            string directory, 
-            string manufacturer, 
+            string directory,
+            string manufacturer,
             string library)
         {
-            var path = 
+            var path =
                 Path.GetFullPath(
                     Path.Combine(directory, manufacturer, library));
             var baseFileName = string.Concat(manufacturer, ".", library);
 
             var zipFileName =
                 Path.Combine(
-                    Environment.CurrentDirectory, 
+                    Environment.CurrentDirectory,
                     string.Concat(baseFileName, ".zip"));
 
             if (File.Exists(zipFileName))
@@ -62,40 +64,42 @@ namespace devplex
                 var dirInfo = new DirectoryInfo(path);
 
                 AddFilesToPackage(
-                    dirInfo, 
-                    zipFile, 
+                    dirInfo,
+                    zipFile,
                     string.Concat(
-                        "/", 
-                        HttpUtility.UrlEncode(manufacturer), 
-                        "/", 
-                        HttpUtility.UrlEncode(library), 
+                        "/",
+                        HttpUtility.UrlEncode(manufacturer),
+                        "/",
+                        HttpUtility.UrlEncode(library),
                         "/"));
             }
 
             return true;
         }
 
+        private static readonly string[] _excludedExtensions = new[] { ".pdb" };
+
         private static void AddFilesToPackage(
-            DirectoryInfo dir, 
-            Package zipFile, 
+            DirectoryInfo dir,
+            Package zipFile,
 
             string path)
         {
             var files = dir.GetFiles();
             foreach (var fileName in files)
             {
-                if (!fileName.Name.EndsWith(".dll") ||
-                    fileName.Name.EndsWith(".xml") ||
-                    fileName.Name.EndsWith(".txt"))
+                if (!string.IsNullOrEmpty(
+                    _excludedExtensions.SingleOrDefault(
+                    x => x == fileName.Extension)))
                 {
                     continue;
                 }
 
-                var fullUri = 
+                var fullUri =
                     string.Concat(
-                        path, 
+                        path,
                         HttpUtility.UrlEncode(fileName.Name));
-                
+
                 var filePackagePart =
                     zipFile.CreatePart(
                         new Uri(
@@ -121,13 +125,10 @@ namespace devplex
                 AddFilesToPackage(t, zipFile, string.Concat(path, t.Name, "/"));
             }
         }
-        
+
 
         public static bool DownloadPackage(string gemName)
         {
-            if (string.IsNullOrWhiteSpace(s_gemSource))
-                throw new ConfigurationErrorsException("Enter a source url.");
-
             var webClient = new WebClient();
             if (!string.IsNullOrWhiteSpace(s_gemSourceUserName) &&
                 !string.IsNullOrWhiteSpace(s_gemSourcePassword))
@@ -141,7 +142,7 @@ namespace devplex
 
             string libDir = EnsureLibDirectory();
 
-            string tempGem = 
+            string tempGem =
                 Path.Combine(Path.GetTempPath(), string.Concat(gemName, ".zip"));
 
             webClient.DownloadFile(
@@ -165,9 +166,9 @@ namespace devplex
             {
                 foreach (var packagePart in zipFile.GetParts())
                 {
-                    var packageUriParts = 
+                    var packageUriParts =
                         packagePart.Uri.OriginalString.Split(
-                            new[]{"/"}, 
+                            new[] { "/" },
                             StringSplitOptions.RemoveEmptyEntries);
 
                     var packagePartDir = libDir;
@@ -183,23 +184,52 @@ namespace devplex
                             Directory.CreateDirectory(packagePartDir);
                         }
                     }
-                    using (var file = 
-                        File.Create(
-                            Path.Combine(packagePartDir, 
+
+                    string filePath =
+                        Path.Combine(
+                            packagePartDir,
                             HttpUtility.UrlDecode(
-                                packageUriParts[packageUriParts.Length - 1]))))
+                                packageUriParts[packageUriParts.Length - 1]));
+
+                    using (var file =
+                        File.Create(filePath))
                     {
                         packagePart.GetStream().CopyTo(file);
                     }
+
+                    if (packageUriParts[packageUriParts.Length - 1]
+                            .Equals(
+                                "references.xml",
+                                StringComparison.OrdinalIgnoreCase))
+                    {
+                        GetReferences(filePath);
+                    }
+                }
+            }
+        }
+
+        private static void GetReferences(string referecesFile)
+        {
+            XmlDocument xmlDocument = new XmlDocument();
+            xmlDocument.Load(referecesFile);
+
+            XmlNodeList nodes = 
+                xmlDocument.SelectNodes("//references/add/@name");
+
+            if (nodes != null)
+            {
+                foreach (XmlNode xmlNode in nodes)
+                {
+                    DownloadPackage(xmlNode.Value);
                 }
             }
         }
 
         private static string EnsureLibDirectory()
         {
-            string gemPath = 
+            string gemPath =
                 Path.Combine(Environment.CurrentDirectory, "lib");
-            
+
             if (!Directory.Exists(gemPath))
             {
                 Directory.CreateDirectory(gemPath);
