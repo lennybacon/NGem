@@ -2,7 +2,6 @@
 using System.IO;
 using System.IO.Packaging;
 using System.Configuration;
-using System.Linq;
 using System.Net;
 using System.Web;
 using System.Xml;
@@ -12,12 +11,12 @@ namespace devplex
     class NGemLib
     {
         private static string s_gemSource;
-        private static string s_gemSourceUserName;
-        private static string s_gemSourcePassword;
+        internal static string s_gemSourceUserName;
+        internal static string s_gemSourcePassword;
 
         static NGemLib()
         {
-            s_gemSource =
+            s_gemSource = 
                 ConfigurationManager.AppSettings["nGemSource"];
             if (string.IsNullOrEmpty(s_gemSource))
             {
@@ -29,26 +28,25 @@ namespace devplex
             {
                 s_gemSource = string.Concat(s_gemSource, "/");
             }
-            s_gemSourceUserName =
+            s_gemSourceUserName = 
                 ConfigurationManager.AppSettings["nGemSourceUserName"];
-            s_gemSourcePassword =
+            s_gemSourcePassword = 
                 ConfigurationManager.AppSettings["nGemSourcePassword"];
         }
 
         public static bool CreatePackage(
-            string directory,
-            string manufacturer,
+            string directory, 
             string library)
         {
-            var path =
-                Path.GetFullPath(
-                    Path.Combine(directory, manufacturer, library));
-            var baseFileName = string.Concat(manufacturer, ".", library);
+            var path = 
+                Path.GetFullPath(directory);
+
+            var di = new DirectoryInfo(path);
 
             var zipFileName =
                 Path.Combine(
                     Environment.CurrentDirectory,
-                    string.Concat(baseFileName, ".zip"));
+                    string.Concat(library, ".zip"));
 
             if (File.Exists(zipFileName))
             {
@@ -64,42 +62,48 @@ namespace devplex
                 var dirInfo = new DirectoryInfo(path);
 
                 AddFilesToPackage(
-                    dirInfo,
-                    zipFile,
+                    dirInfo, 
+                    zipFile, 
                     string.Concat(
                         "/",
-                        HttpUtility.UrlEncode(manufacturer),
+                        HttpUtility.UrlEncode(di.Name), 
                         "/",
-                        HttpUtility.UrlEncode(library),
-                        "/"));
+                        di.Parent != null && !di.Parent.Name.Equals("lib")
+                            ? string.Concat(
+                                HttpUtility.UrlEncode(di.Parent.Name), "/")
+                            : string.Empty));
             }
 
             return true;
         }
 
-        private static readonly string[] _excludedExtensions = new[] { ".pdb" };
-
         private static void AddFilesToPackage(
-            DirectoryInfo dir,
-            Package zipFile,
+            DirectoryInfo dir, 
+            Package zipFile, 
 
             string path)
         {
             var files = dir.GetFiles();
             foreach (var fileName in files)
             {
-                if (!string.IsNullOrEmpty(
-                    _excludedExtensions.SingleOrDefault(
-                    x => x == fileName.Extension)))
+                if (!fileName.Name.EndsWith(
+                        ".dll", 
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.Name.EndsWith(
+                        ".xml", 
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.Name.EndsWith(
+                        ".txt", 
+                        StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
 
-                var fullUri =
+                var fullUri = 
                     string.Concat(
-                        path,
+                        path, 
                         HttpUtility.UrlEncode(fileName.Name));
-
+                
                 var filePackagePart =
                     zipFile.CreatePart(
                         new Uri(
@@ -126,9 +130,34 @@ namespace devplex
             }
         }
 
-
-        public static bool DownloadPackage(string gemName)
+        public static void ResolvePackage(
+            string gemName, 
+            Action<string> message)
         {
+            var tempGem =
+                Path.Combine(
+                    Path.GetTempPath(), 
+                    string.Concat(gemName, ".zip"));
+
+            var libDir = EnsureLibDirectory();
+
+            DownloadPackage(gemName, tempGem);
+
+            ExtractGem(
+                tempGem, 
+                libDir, 
+                refGem => ResolvePackage(refGem, message));
+
+
+            File.Delete(tempGem);
+            message(gemName);
+        }
+
+        public static void DownloadPackage(string gemName, string localFile)
+        {
+            if (string.IsNullOrWhiteSpace(s_gemSource))
+                throw new ConfigurationErrorsException("Enter a source url.");
+
             var webClient = new WebClient();
             if (!string.IsNullOrWhiteSpace(s_gemSourceUserName) &&
                 !string.IsNullOrWhiteSpace(s_gemSourcePassword))
@@ -138,25 +167,20 @@ namespace devplex
             }
 
             if (!s_gemSource.EndsWith("/"))
+            {
                 s_gemSource += "/";
-
-            string libDir = EnsureLibDirectory();
-
-            string tempGem =
-                Path.Combine(Path.GetTempPath(), string.Concat(gemName, ".zip"));
+            }
 
             webClient.DownloadFile(
                 string.Concat(s_gemSource, gemName, ".zip"),
-                tempGem);
+                localFile);
 
-            ExtractGem(tempGem, libDir);
-
-            File.Delete(tempGem);
-
-            return true;
         }
 
-        private static void ExtractGem(string tempGem, string libDir)
+        private static void ExtractGem(
+            string tempGem, 
+            string libDir, 
+            Action<string> resolveFunction)
         {
             using (var zipFile =
                Package.Open(
@@ -166,13 +190,13 @@ namespace devplex
             {
                 foreach (var packagePart in zipFile.GetParts())
                 {
-                    var packageUriParts =
+                    var packageUriParts = 
                         packagePart.Uri.OriginalString.Split(
-                            new[] { "/" },
+                            new[]{"/"}, 
                             StringSplitOptions.RemoveEmptyEntries);
 
                     var packagePartDir = libDir;
-                    for (int i = 0; i < packageUriParts.Length - 1; i++)
+                    for (var i = 0; i < packageUriParts.Length - 1; i++)
                     {
                         packagePartDir =
                             Path.Combine(
@@ -184,52 +208,48 @@ namespace devplex
                             Directory.CreateDirectory(packagePartDir);
                         }
                     }
+                    var fileName = 
+                        HttpUtility.UrlDecode(
+                            packageUriParts[packageUriParts.Length - 1]);
 
-                    string filePath =
-                        Path.Combine(
-                            packagePartDir,
-                            HttpUtility.UrlDecode(
-                                packageUriParts[packageUriParts.Length - 1]));
-
-                    using (var file =
-                        File.Create(filePath))
+                    if (fileName.Equals(
+                        "References.xml", 
+                        StringComparison.OrdinalIgnoreCase))
                     {
-                        packagePart.GetStream().CopyTo(file);
+                        using (var stream = packagePart.GetStream())
+                        using (var reader = XmlReader.Create(stream))
+                        while (reader.Read())
+                        {
+                            if (reader.NodeType == XmlNodeType.Element &&
+                                reader.LocalName.Equals(
+                                    "add"))
+                            {
+                                if (reader.MoveToAttribute("name"))
+                                {
+                                    resolveFunction(reader.Value);
+                                }
+                            }
+                        }
+                        continue;
                     }
 
-                    if (packageUriParts[packageUriParts.Length - 1]
-                            .Equals(
-                                "references.xml",
-                                StringComparison.OrdinalIgnoreCase))
+                    using (var file = 
+                        File.Create(Path.Combine(packagePartDir, fileName)))
                     {
-                        GetReferences(filePath);
+                        using (var stream = packagePart.GetStream())
+                        {
+                            stream.CopyTo(file);
+                        }
                     }
-                }
-            }
-        }
-
-        private static void GetReferences(string referecesFile)
-        {
-            XmlDocument xmlDocument = new XmlDocument();
-            xmlDocument.Load(referecesFile);
-
-            XmlNodeList nodes = 
-                xmlDocument.SelectNodes("//references/add/@name");
-
-            if (nodes != null)
-            {
-                foreach (XmlNode xmlNode in nodes)
-                {
-                    DownloadPackage(xmlNode.Value);
                 }
             }
         }
 
         private static string EnsureLibDirectory()
         {
-            string gemPath =
+            var gemPath = 
                 Path.Combine(Environment.CurrentDirectory, "lib");
-
+            
             if (!Directory.Exists(gemPath))
             {
                 Directory.CreateDirectory(gemPath);
