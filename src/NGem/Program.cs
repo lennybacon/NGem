@@ -40,19 +40,16 @@ namespace devplex
                                 var color = Console.ForegroundColor;
                                 Console.ForegroundColor = 
                                     Console.BackgroundColor;
+                                Console.CursorVisible = false;
                                 var password = Console.ReadLine();
                                 Console.ForegroundColor = color;
-                                ConfigurationManager.AppSettings[
-                                    "nGemSourceUserName"] =
-                                        NGemLib.s_gemSourceUserName =
-                                            userName;
+                                Console.CursorVisible = true;
+                                Properties.Settings.Default.UserName =
+                                    userName;
+                                Properties.Settings.Default.Password =
+                                    password;
+                                Properties.Settings.Default.Save();
                                 
-                                ConfigurationManager.AppSettings[
-                                    "nGemSourcePassword"] =
-                                        NGemLib.s_gemSourcePassword =
-                                            password;
-
-                                //Save Configuration?
                                 continue;
                             }
                             throw;
@@ -65,11 +62,11 @@ namespace devplex
 
                 }
                 else if (args != null &&
-                    args.Length == 3 &&
+                    args.Length == 4 &&
                     args[0].Equals("make", StringComparison.OrdinalIgnoreCase))
                 {
 
-                    if (NGemLib.CreatePackage(args[1], args[2]))
+                    if (NGemLib.CreatePackage(args[1], args[2], args[3]))
                     {
                         Console.WriteLine(
                             string.Concat(
@@ -79,7 +76,6 @@ namespace devplex
                                 args[3],
                                 "\"."));
                     }
-
                 }
                 else
                 {
@@ -98,8 +94,6 @@ namespace devplex
                 {
                     Console.WriteLine(ex.ToString());
                 }
-                Console.WriteLine("Hit [ENTER] to quit...");
-                Console.ReadLine();
             }
         }
 
@@ -108,8 +102,7 @@ namespace devplex
             Console.WriteLine("gem install {packagename}");
             Console.WriteLine(" or");
             Console.WriteLine("gem make {pathtolib} {library}");
-            Console.WriteLine("");
-            Console.WriteLine("Hit [ENTER] to quit...");
+
             Console.ReadLine();
         }
     }

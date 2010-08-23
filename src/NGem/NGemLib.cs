@@ -5,14 +5,13 @@ using System.Configuration;
 using System.Net;
 using System.Web;
 using System.Xml;
+using devplex.Properties;
 
 namespace devplex
 {
     class NGemLib
     {
         private static string s_gemSource;
-        internal static string s_gemSourceUserName;
-        internal static string s_gemSourcePassword;
 
         static NGemLib()
         {
@@ -28,25 +27,22 @@ namespace devplex
             {
                 s_gemSource = string.Concat(s_gemSource, "/");
             }
-            s_gemSourceUserName = 
-                ConfigurationManager.AppSettings["nGemSourceUserName"];
-            s_gemSourcePassword = 
-                ConfigurationManager.AppSettings["nGemSourcePassword"];
         }
 
         public static bool CreatePackage(
             string directory, 
+            string manufacturer, 
             string library)
         {
             var path = 
-                Path.GetFullPath(directory);
-
-            var di = new DirectoryInfo(path);
+                Path.GetFullPath(
+                    Path.Combine(directory, manufacturer, library));
+            var baseFileName = string.Concat(manufacturer, ".", library);
 
             var zipFileName =
                 Path.Combine(
-                    Environment.CurrentDirectory,
-                    string.Concat(library, ".zip"));
+                    Environment.CurrentDirectory, 
+                    string.Concat(baseFileName, ".zip"));
 
             if (File.Exists(zipFileName))
             {
@@ -65,13 +61,11 @@ namespace devplex
                     dirInfo, 
                     zipFile, 
                     string.Concat(
-                        "/",
-                        HttpUtility.UrlEncode(di.Name), 
-                        "/",
-                        di.Parent != null && !di.Parent.Name.Equals("lib")
-                            ? string.Concat(
-                                HttpUtility.UrlEncode(di.Parent.Name), "/")
-                            : string.Empty));
+                        "/", 
+                        HttpUtility.UrlEncode(manufacturer), 
+                        "/", 
+                        HttpUtility.UrlEncode(library), 
+                        "/"));
             }
 
             return true;
@@ -159,11 +153,13 @@ namespace devplex
                 throw new ConfigurationErrorsException("Enter a source url.");
 
             var webClient = new WebClient();
-            if (!string.IsNullOrWhiteSpace(s_gemSourceUserName) &&
-                !string.IsNullOrWhiteSpace(s_gemSourcePassword))
+            if (!string.IsNullOrWhiteSpace(Settings.Default.UserName) &&
+                !string.IsNullOrWhiteSpace(Settings.Default.Password))
             {
                 webClient.Credentials =
-                    new NetworkCredential(s_gemSourceUserName, s_gemSourcePassword);
+                    new NetworkCredential(
+                        Settings.Default.UserName, 
+                        Settings.Default.Password);
             }
 
             if (!s_gemSource.EndsWith("/"))
