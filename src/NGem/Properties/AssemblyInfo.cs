@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("devplex.Gem")]
+[assembly: AssemblyTitle("NGem")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("devplex.net")]
-[assembly: AssemblyProduct("devplex.Gem")]
+[assembly: AssemblyProduct("devplex NGem")]
 [assembly: AssemblyCopyright("Copyright © 2010 devplex.net")]
 [assembly: AssemblyTrademark("http://www.devplex.net/")]
 [assembly: AssemblyCulture("")]
