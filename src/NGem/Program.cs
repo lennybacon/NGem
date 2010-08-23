@@ -129,7 +129,7 @@ namespace devplex
         {
             Console.WriteLine("gem install {packagename}");
             Console.WriteLine(" or");
-            Console.WriteLine("gem make {pathtolib} {library} {manufaturer} {library}");
+            Console.WriteLine("gem make {pathtolib} {manufacturer} {library}");
             Console.WriteLine(string.Empty);
             Console.WriteLine("Hit [ENTER] to quit...");
             Console.ReadLine();
