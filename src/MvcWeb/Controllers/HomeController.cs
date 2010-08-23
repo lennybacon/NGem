@@ -20,5 +20,10 @@ namespace MvcWeb.Controllers
         {
             return View();
         }
+
+        public ActionResult Tutorials()
+        {
+            return View();
+        }
     }
 }
