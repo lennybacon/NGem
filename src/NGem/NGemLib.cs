@@ -106,9 +106,27 @@ namespace devplex
                         StringComparison.OrdinalIgnoreCase) &&
                     !fileName.Name.EndsWith(
                         ".txt",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.Name.EndsWith(
+                        ".exp",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.Name.EndsWith(
+                        ".lib",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.Name.EndsWith(
+                        ".bin",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.Name.EndsWith(
+                        ".def",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.Name.EndsWith(
+                        ".targets",
                         StringComparison.OrdinalIgnoreCase))
                 {
-                    continue;
+                    if (fileName.Name.IndexOf(".") > -1)
+                    {
+                        continue;
+                    }
                 }
 
                 var fullUri =
