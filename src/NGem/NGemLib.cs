@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Packaging;
 using System.Configuration;
@@ -15,6 +16,8 @@ namespace devplex
     public class NGemLib
     {
         private static string s_gemSource;
+
+        private static readonly List<string> s_ResolvedGems = new List<string>();
 
         #region Ctor()
         static NGemLib()
@@ -153,11 +156,13 @@ namespace devplex
             var tempGem =
                 Path.Combine(
                     Path.GetTempPath(),
-                    string.Concat(gemName, ".zip"));
+                    Path.GetTempFileName());
 
             var libDir = EnsureLibDirectory();
 
             DownloadPackage(gemName, tempGem);
+
+            s_ResolvedGems.Add(gemName);
 
             ExtractGem(
                 tempGem,
@@ -248,7 +253,11 @@ namespace devplex
                                 {
                                     if (reader.MoveToAttribute("name"))
                                     {
-                                        resolveFunction(reader.Value);
+                                        if (!s_ResolvedGems.Contains(
+                                            reader.Value))
+                                        {
+                                            resolveFunction(reader.Value);
+                                        }
                                     }
                                 }
                             }
